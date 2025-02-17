@@ -1,0 +1,56 @@
+.layout {
+  display: flex;
+  height: 100vh;
+}
+
+.sidebar {
+  width: auto;
+  background-color: #343a40;
+  color: white;
+  padding-top: 20px;
+  height: 100%;
+}
+
+.main-content {
+  flex-grow: 1;
+  margin-left: 250px;
+  padding-top: 10px;
+}
+
+.profile_name {
+  text-transform: uppercase;
+  font-size: 1.5rem;
+  font-weight: bold;
+  color: #0A3981;
+}
+
+.admin-profile {
+  width: 100%;
+  max-width: 900px;
+  margin: 30px auto;
+  padding: 25px;
+  background: white;
+  border-radius: 8px;
+}
+
+.admin-profile .profile-title {
+  color: #0a3981;  
+  font-size: 2rem;
+  font-weight: bold;
+  margin-bottom: 15px;
+  padding-bottom: 5px;
+  border-bottom: 2px solid #007bff;
+}
+
+.admin-profile .profile-details {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  font-size: 1.2rem;
+}
+
+.admin-profile .profile-label {
+  font-weight: bold;
+  color: #004c9e;
+  width: 120px;
+}

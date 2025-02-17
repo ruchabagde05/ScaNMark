@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Faculty Dashboard</title>
+
+    <!-- Google Fonts -->
+    <link
+      href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&family=Poppins:wght@400;600&display=swap"
+      rel="stylesheet"
+    />
+
+    <style>
+      /* General Styles */
+      body {
+        font-family: "Roboto", sans-serif;
+        margin: 0;
+        padding: 0;
+        background-color: #f7f7f7;
+        color: #333;
+        text-align: center;
+      }
+
+      h1 {
+        margin-top: px;
+        font-family: "Poppins", sans-serif;
+        color: #4a90e2;
+      }
+
+      h3 {
+        margin: 20px 0;
+        font-family: "Poppins", sans-serif;
+        color: #333;
+      }
+
+      /* Container Styles */
+      .container {
+        max-width: 900px;
+        margin: 0 auto;
+        padding: 30px;
+        background: #fff;
+        border-radius: 10px;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        margin-top: 40px;
+      }
+
+      /* Dropdown Styles */
+      select {
+        padding: 12px;
+        width: 250px;
+        margin-bottom: 20px;
+        border: 1px solid #ddd;
+        border-radius: 5px;
+        font-size: 16px;
+        font-family: "Roboto", sans-serif;
+      }
+
+      /* Button Styles */
+      button {
+        padding: 12px 20px;
+        margin: 10px;
+        border: none;
+        border-radius: 5px;
+        background-color: #4caf50;
+        color: #fff;
+        font-size: 16px;
+        font-family: "Poppins", sans-serif;
+        cursor: pointer;
+        transition: background-color 0.3s ease, transform 0.3s ease;
+      }
+
+      button:hover {
+        background-color: #45a049;
+        transform: translateY(-3px);
+      }
+
+      /* Timer Styles */
+      #timer {
+        font-size: 36px;
+        font-family: "Poppins", sans-serif;
+        color: #fff;
+        background-color: #e74c3c;
+        padding: 10px 20px;
+        border-radius: 20px;
+        width: fit-content;
+        margin: 20px auto;
+        display: none;
+        font-weight: bold;
+      }
+
+      /* QR Code Styles */
+      #qr-code-container {
+        max-width: 350px;
+        margin: 30px auto;
+        display: none;
+        border-radius: 10px;
+        border: 5px solid #ddd;
+        padding: 8px;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+      }
+
+      /* Layout for Buttons */
+      .buttons {
+        margin-top: 20px;
+      }
+    </style>
+    
+  </head>
+  <body>
+    <h1>Welcome, <span id="faculty-name"></span></h1>
+
+    <!-- Dropdown for selecting lectures -->
+    <h3>Select Lecture:</h3>
+    <select id="lecture-dropdown">
+      <option value="">Select a lecture</option>
+    </select>
+
+    <button id="generate-qr-button">Generate QR Code</button>
+    <button id="show-qr-button">Show QR Code Again</button>
+
+    <div>
+      <h3>QR Code:</h3>
+      <p id="timer" >30</p>
+      <img
+        id="qr-code-container"
+        src=""
+        alt="Generated QR will appear here"
+        style="display: none"
+      />
+    </div>
+
+    <script>
+      let BASE_URL = "";
+      let timerInterval = null;
+      let selectedLectureId = null;
+
+      document.addEventListener("DOMContentLoaded", async () => {
+        console.log("DOM fully loaded and parsed.");
+        BASE_URL = await fetchNgrokUrl();
+
+        const facultyName = localStorage.getItem("facultyName");
+        document.getElementById("faculty-name").innerText =
+          facultyName || "Faculty";
+
+        console.log("Loaded facultyName:", facultyName);
+
+        console.log("Fetching lectures for the logged-in faculty...");
+        await fetchAndPopulateLectures();
+
+        document.getElementById("generate-qr-button").onclick = async () => {
+          console.log("Generate QR Code button clicked.");
+          if (!selectedLectureId) {
+            alert("Please select a lecture from the dropdown first.");
+            console.warn("No lecture selected.");
+            return;
+          }
+          console.log("Selected lecture ID:", selectedLectureId);
+          await checkAndRequestLocationPermission();
+        };
+
+        document.getElementById("show-qr-button").onclick = async () => {
+          console.log("Show QR Code Again button clicked.");
+          if (!selectedLectureId) {
+            alert("Please select a lecture from the dropdown first.");
+            console.warn("No lecture selected.");
+            return;
+          }
+          clearQRCodeTimer(); // Clear existing timeout
+          await fetchAndDisplayLatestQRCode();
+        };
+
+        document
+          .getElementById("lecture-dropdown")
+          .addEventListener("change", (e) => {
+            selectedLectureId = e.target.value;
+            console.log(
+              "Lecture dropdown changed. Selected lecture ID: ",
+              selectedLectureId
+            );
+          });
+      });
+
+      async function fetchNgrokUrl() {
+        try {
+          console.log("Fetching Ngrok URL...");
+          const response = await fetch(
+            "http://localhost:8081/config/ngrok-url"
+          );
+          if (response.ok) {
+            const url = await response.text();
+            console.log("Ngrok URL fetched successfully:", url);
+            return url;
+          } else {
+            console.error(
+              "Ngrok URL not available. Response status: ",
+              response.status
+            );
+            alert("Ngrok URL not available. Please try again later.");
+            return "";
+          }
+        } catch (error) {
+          console.error("Error fetching Ngrok URL:", error);
+          return "";
+        }
+      }
+
+      async function fetchAndPopulateLectures() {
+        try {
+          console.log("Fetching lectures...");
+
+          const facultyName = localStorage.getItem("facultyName");
+          if (!facultyName) {
+            console.error("Faculty name is missing in localStorage.");
+            alert("Faculty information is missing. Please log in again.");
+            window.location.href = "/faculty-login.html";
+            return;
+          }
+
+          const response = await fetch(
+            `${BASE_URL}/api/lecture/lectures?facultyName=${encodeURIComponent(
+              facultyName
+            )}`,
+            {
+              method: "GET",
+              headers: {
+                Authorization: `Bearer ${localStorage.getItem("token")}`,
+              },
+            }
+          );
+
+          if (response.ok) {
+            const lectures = await response.json();
+            console.log("Lectures fetched successfully:", lectures);
+
+            const dropdown = document.getElementById("lecture-dropdown");
+            lectures.forEach((lecture) => {
+              const option = document.createElement("option");
+              option.value = lecture.id;
+              option.text = `${lecture.subjectName} - ${lecture.lectureTime}`;
+              dropdown.appendChild(option);
+            });
+          } else {
+            console.error(
+              "Could not fetch lectures. Response status: ",
+              response.status
+            );
+            alert("Could not fetch assigned lectures.");
+          }
+        } catch (error) {
+          console.error("Error fetching lectures:", error);
+        }
+      }
+      timerInterval = null;
+
+      function clearQRCodeTimer() {
+        if (timerInterval) {
+          clearInterval(timerInterval);
+          timerInterval = null;
+        }
+      }
+
+      function hideQRCodeAfterTimeout() {
+        let secondsLeft = 30; // 30-second countdown
+        const timerDisplay = document.getElementById("timer");
+
+        // Clear any pre-existing intervals
+        clearQRCodeTimer();
+
+        // Display the timer
+        timerDisplay.style.display = "block";
+        timerDisplay.innerText = secondsLeft;
+
+        timerInterval = setInterval(() => {
+          secondsLeft -= 1;
+          timerDisplay.innerText = secondsLeft;
+
+          if (secondsLeft <= 0) {
+            clearQRCodeTimer();
+            timerDisplay.style.display = "none";
+            const qrCodeContainer =
+              document.getElementById("qr-code-container");
+            qrCodeContainer.style.display = "none"; // Hide QR code after 30 seconds
+          }
+        }, 1000);
+      }
+
+      async function fetchAndGenerateQRCode() {
+        console.log("Fetching geolocation data...");
+        if (navigator.geolocation) {
+          navigator.geolocation.getCurrentPosition(async (position) => {
+            const { latitude, longitude } = position.coords;
+
+            try {
+              const response = await fetch(
+                `${BASE_URL}/api/faculty/generate-qr?lectureId=${selectedLectureId}`,
+                {
+                  method: "POST",
+                  headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${localStorage.getItem("token")}`,
+                  },
+                  body: JSON.stringify({
+                    latitude,
+                    longitude,
+                  }),
+                }
+              );
+
+              const result = await response.json();
+
+              if (response.ok) {
+                console.log("QR Code generated successfully", result);
+                displayQRCode(result.qrCode);
+                hideQRCodeAfterTimeout(); // Call timer after showing the QR code
+              } else {
+                // Handle error response
+                alert(
+                  result.message ||
+                    "A QR code for this lec already exists. cannot regenerate."
+                );
+              }
+            } catch (error) {
+              console.error("Unexpected error:", error);
+              alert("An unexpected error occurred.");
+            }
+          });
+        } else {
+          console.error("Geolocation not supported by browser.");
+          alert("Geolocation is not supported by your browser.");
+        }
+      }
+
+      async function fetchAndDisplayLatestQRCode() {
+        console.log("Fetching latest QR code...");
+        try {
+          const response = await fetch(
+            `${BASE_URL}/api/faculty/show-qr-again?lectureId=${selectedLectureId}`,
+            {
+              method: "GET",
+              headers: {
+                Authorization: `Bearer ${localStorage.getItem("token")}`,
+              },
+            }
+          );
+
+          if (response.ok) {
+            const result = await response.json();
+            console.log("Latest QR Code fetched successfully:", result);
+            displayQRCode(result.qrCode);
+            hideQRCodeAfterTimeout(); // Call timer after showing the QR code
+          } else {
+            console.error("No QR Code found for this lecture.");
+            alert("No QR Code found for this lecture.");
+          }
+        } catch (error) {
+          console.error("Error fetching latest QR code:", error);
+          alert("Error fetching QR Code. Please try again.");
+        }
+      }
+
+      function displayQRCode(qrBase64) {
+        console.log("Displaying QR code...");
+        const qrCodeContainer = document.getElementById("qr-code-container");
+        qrCodeContainer.src = `data:image/png;base64,${qrBase64}`;
+        qrCodeContainer.style.display = "block";
+        console.log("QR code displayed.");
+
+        hideQRCodeAfterTimeout();
+      }
+
+      async function checkAndRequestLocationPermission() {
+        try {
+          console.log("Checking geolocation permissions...");
+          const permissionStatus = await navigator.permissions.query({
+            name: "geolocation",
+          });
+
+          if (permissionStatus.state === "granted") {
+            console.log("Geolocation permission granted. Fetching QR code...");
+            fetchAndGenerateQRCode();
+          } else if (permissionStatus.state === "prompt") {
+            console.log("Geolocation permission prompt displayed.");
+            navigator.geolocation.getCurrentPosition(
+              () => {
+                console.log("Location permission granted by user.");
+                fetchAndGenerateQRCode();
+              },
+              (err) => {
+                console.error("Location permission denied by user:", err);
+                alert(
+                  "Please allow location permissions to generate the QR code."
+                );
+              }
+            );
+          } else {
+            console.error("Geolocation permission denied.");
+            alert("Geolocation permission denied.");
+          }
+        } catch (error) {
+          console.error("Error checking location permissions:", error);
+        }
+      }
+
+      function displayQRCode(qrBase64) {
+        console.log("Displaying QR code...");
+        const qrCodeContainer = document.getElementById("qr-code-container");
+        qrCodeContainer.src = `data:image/png;base64,${qrBase64}`;
+        qrCodeContainer.style.display = "block";
+        console.log("QR code displayed.");
+      }
+    </script>
+  </body>
+</html>

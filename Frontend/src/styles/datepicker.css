@@ -1,0 +1,43 @@
+Custom date picker container
+.react-datepicker {
+    font-family: 'Arial', sans-serif;
+    border-radius: 8px;
+    border: 1px solid #00adb5;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+    overflow: hidden;
+  }
+  
+  /* Date picker header styling */
+  .react-datepicker__header {
+    background-color: #00adb5;
+    color: #ffffff;
+    border-bottom: none;
+    font-size: 16px;
+    text-align: center;
+    font-weight: bold;
+  }
+  
+  /* Selected day and hover effect */
+  .react-datepicker__day--selected,
+  .react-datepicker__day:hover {
+    background-color: #00adb5;
+    color: white;
+    border-radius: 50%;
+  }
+  
+  /* Time container styling */
+  .react-datepicker__time-container {
+    border-left: 1px solid #00adb5;
+  }
+  
+  .react-datepicker__time-list {
+    padding: 5px;
+    background-color: #f9f9f9;
+  }
+  
+  .react-datepicker__time-list-item--selected {
+    background-color: #00adb5;
+    color: #ffffff;
+    border-radius: 4px;
+  }
+  

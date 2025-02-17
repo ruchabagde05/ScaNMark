@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Student Dashboard</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+      }
+      .container {
+        max-width: 600px;
+        margin: 50px auto;
+        padding: 20px;
+        border: 1px solid #ccc;
+        border-radius: 8px;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+      }
+      .input-field {
+        margin-bottom: 15px;
+      }
+      .input-field label {
+        display: block;
+        margin-bottom: 5px;
+      }
+      .input-field input {
+        width: 100%;
+        padding: 8px;
+        box-sizing: border-box;
+      }
+      button {
+        padding: 10px 20px;
+        background-color: #007bff;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+      }
+      button:disabled {
+        background-color: #ccc;
+        cursor: not-allowed;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>Welcome, <span id="student-name"></span>!</h1>
+      <form id="attendance-form">
+        <div class="input-field">
+          <label for="qr-content">QR Code Content:</label>
+          <input
+            type="text"
+            id="qr-content"
+            name="qr-content"
+            value="latitude:19.123456,longitude:73.123456,lectureId:101"
+            <!--
+            Hardcoded
+            QR
+            content
+            --
+          />
+          readonly />
+        </div>
+        <div class="input-field">
+          <label for="private-key">Private Key:</label>
+          <input
+            type="password"
+            id="private-key"
+            name="private-key"
+            value="hardcoded-private-key"
+            <!--
+            Replace
+            with
+            the
+            actual
+            private
+            key
+            --
+          />
+          readonly />
+        </div>
+        <button type="submit">Mark Attendance</button>
+      </form>
+      <div id="response-message" style="margin-top: 20px"></div>
+    </div>
+
+    <script>
+      let BASE_URL = "";
+
+      document.addEventListener("DOMContentLoaded", async () => {
+        BASE_URL = await fetchNgrokUrl();
+        const studentName =
+          sessionStorage.getItem("studentName") || "Test Student";
+        const studentPrn = sessionStorage.getItem("studentPrn") || "1234567890";
+
+        sessionStorage.setItem("studentPrn", studentPrn); // Ensure PRN is set for the test
+        document.getElementById("student-name").textContent = studentName;
+      });
+
+      async function fetchNgrokUrl() {
+        try {
+          const response = await fetch(
+            "http://localhost:8081/config/ngrok-url"
+          );
+          if (response.ok) {
+            return await response.text();
+          } else {
+            console.error("Error fetching ngrok URL:", response.status);
+            alert("Ngrok URL not available. Please try again later.");
+            return "";
+          }
+        } catch (error) {
+          console.error("Error fetching ngrok URL:", error);
+          return "";
+        }
+      }
+
+      function generateDummyLocation(baseLat, baseLon) {
+        const randomOffset = () => Math.random() * 0.00045 - 0.000225; // ~50m offset
+        return {
+          latitude: baseLat + randomOffset(),
+          longitude: baseLon + randomOffset(),
+        };
+      }
+      function decodePrivateKey(encodedKey) {
+        return atob(encodedKey); // Decodes Base64-encoded private key
+      }
+
+      function signContent(content, encodedKey) {
+        const privateKey = decodePrivateKey(encodedKey); // Decode the private key
+        const encoder = new TextEncoder();
+        const encodedContent = encoder.encode(content + privateKey);
+        return crypto.subtle.digest("SHA-256", encodedContent).then((hash) => {
+          return Array.from(new Uint8Array(hash))
+            .map((byte) => byte.toString(16).padStart(2, "0"))
+            .join("");
+        });
+      }
+
+      // Example usage in the form submission
+      document
+        .getElementById("attendance-form")
+        .addEventListener("submit", async function (event) {
+          event.preventDefault();
+
+          const qrContent = document.getElementById("qr-content").value;
+          const encodedPrivateKey =
+            document.getElementById("private-key").value;
+
+          const baseLat = 19.123456; // Hardcoded base latitude from QR content
+          const baseLon = 73.123456; // Hardcoded base longitude from QR content
+
+          const dummyLocation = generateDummyLocation(baseLat, baseLon);
+
+          try {
+            const signedQrContent = await signContent(
+              qrContent,
+              encodedPrivateKey
+            );
+
+            const studentPrn = sessionStorage.getItem("studentPrn");
+            const requestBody = {
+              studentPrn,
+              signedQrContent,
+              latitude: dummyLocation.latitude,
+              longitude: dummyLocation.longitude,
+            };
+
+            const response = await fetch(
+              `${BASE_URL}/api/attendance/mark-attendance`,
+              {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  Authorization: `Bearer ${sessionStorage.getItem("token")}`,
+                },
+                body: JSON.stringify(requestBody),
+              }
+            );
+
+            const data = await response.json();
+
+            if (response.ok) {
+              document.getElementById("response-message").textContent =
+                "Attendance marked successfully!";
+              document.getElementById("response-message").style.color = "green";
+            } else {
+              document.getElementById("response-message").textContent =
+                data.message || "Failed to mark attendance. Please try again.";
+              document.getElementById("response-message").style.color = "red";
+            }
+          } catch (error) {
+            console.error("Error during attendance marking:", error);
+            document.getElementById("response-message").textContent =
+              "An unexpected error occurred. Please try again.";
+            document.getElementById("response-message").style.color = "red";
+          }
+        });
+    </script>
+  </body>
+</html>

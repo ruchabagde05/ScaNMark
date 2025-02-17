@@ -1,0 +1,62 @@
+/* Main container styling for ClassesPage */
+.classes-container {
+    padding: 30px;
+    max-width: 600px;
+    margin: 50px auto;
+    background-color: #393e46; /* Card-like container color */
+    border-radius: 10px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    color: #eeeeee; /* Text color */
+  }
+  
+  /* Header styling */
+  .classes-container h2 {
+    text-align: center;
+    color: #00adb5; /* Accent color for the header */
+    margin-bottom: 20px;
+    font-weight: bold;
+  }
+  
+  /* Form styling */
+  .classes-container form {
+    display: flex;
+    flex-direction: column;
+  }
+  
+  /* Input and Select fields */
+  .classes-container form input,
+  .classes-container form select {
+    width: 100%;
+    padding: 10px;
+    margin-bottom: 20px;
+    border: 1px solid #00adb5; /* Border matches the accent color */
+    border-radius: 5px;
+    background-color: #222831; /* Darker input background */
+    color: #eeeeee; /* Text color inside inputs */
+    font-size: 16px;
+  }
+  
+  /* Input and Select focus effect */
+  .classes-container form input:focus,
+  .classes-container form select:focus {
+    outline: none;
+    border-color: #00adb5;
+    box-shadow: 0 0 4px #00adb5;
+  }
+  
+  /* Submit button */
+  .classes-container form button {
+    background-color: #00adb5; /* Primary button color */
+    color: #eeeeee; /* Button text color */
+    padding: 10px;
+    font-size: 16px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+  }
+  
+  .classes-container form button:hover {
+    background-color: #008c94; /* Darker blue hover effect */
+  }
+  

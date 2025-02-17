@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mark Attendance</title>
+</head>
+<body>
+    <h1>Mark Attendance</h1>
+
+    <!-- Attendance Form -->
+    <form id="attendance-form">
+        <label for="prn">Student PRN:</label>
+        <input type="text" id="prn" name="prn" required>
+        <br><br>
+
+        <button type="submit">Submit Attendance</button>
+    </form>
+
+    <script>
+
+        let BASE_URL = "";
+
+      document.addEventListener("DOMContentLoaded", async () => {
+        BASE_URL = await fetchNgrokUrl();
+      });
+
+      async function fetchNgrokUrl() {
+        try {
+          const response = await fetch("http://localhost:8081/config/ngrok-url");
+          if (response.ok) {
+            return await response.text();
+          } else {
+            console.error("Error fetching ngrok URL:", response.status);
+            alert("Ngrok URL not available. Please try again later.");
+            return "";
+          }
+        } catch (error) {
+          console.error("Error fetching ngrok URL:", error);
+          return "";
+        }
+      }
+        // Function to decode Base64 private key
+        function decodeBase64Key(base64Key) {
+            base64Key = base64Key.trim(); // Remove any extra spaces or line breaks
+            return Uint8Array.from(atob(base64Key), c => c.charCodeAt(0));
+        }
+
+        // Function to sign QR content using student's private key
+        async function signQrContent(qrContent, privateKeyBase64) {
+            const privateKeyBytes = decodeBase64Key(privateKeyBase64);
+
+            // Import the private key using Web Crypto API
+            const privateKey = await window.crypto.subtle.importKey(
+                "pkcs8", // Key format
+                privateKeyBytes, // Key data
+                { name: "RSA-PSS", hash: "SHA-256" }, // Algorithm
+                false, // Can be exported
+                ["sign"] // Key usage
+            );
+
+            // Encode the QR content to bytes
+            const encoder = new TextEncoder();
+            const contentBytes = encoder.encode(qrContent);
+
+            // Sign the content using the private key
+            const signature = await window.crypto.subtle.sign(
+                { name: "RSA-PSS", saltLength: 32 }, // Use RSA-PSS with salt length 32
+                privateKey, // Private key
+                contentBytes // Data to sign
+            );
+
+            return btoa(String.fromCharCode(...new Uint8Array(signature))); // Base64 encode the signature
+        }
+
+        // Prepare data for the API request
+        async function prepareAndSendRequest(event) {
+            event.preventDefault(); // Prevent default form submission
+
+            const prn = document.getElementById("prn").value;
+
+            // Example QR content (this would be generated dynamically in a real scenario)
+            const qrContent = "5|2024-12-18T22:25:34.453002600|18.5925785|73.7183639"; // This should be the content of the QR code
+            const privateKeyBase64 = "MIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQCOPdWpZnV5tTStlpCuJiHPNoHCG2E1J0E7lyqeiuX4PWUnh4Gh6u9x1cm+Tgvd3vx+cw6DCIDP6LUYh/Jd697mgFt7cwCAAY+f0ezy/01PWDaYSqorTjdOaq/CYXE4xDNLMQbohLqaN9WNSdzx0shsPvC8dp8m8y2feNlx8EnuUtN9rG84nNo0FKtqdkZ1ihor5QOy+MGedz..."; // Provide private key here
+
+            // Sign the QR content
+            const signedQrContent = await signQrContent(qrContent, privateKeyBase64);
+
+            // Prepare the data to be sent to the backend
+            const requestBody = {
+                studentPrn: prn, // Student PRN
+                signedQrContent: signedQrContent, // Signed QR content
+                latitude: 18.5925785, // Latitude (could be dynamic, for example, from device)
+                longitude: 73.7183639 // Longitude (could be dynamic, for example, from device)
+            };
+
+            // Send the POST request to the backend API
+            fetch(`${BASE_URL}/api/attendance/mark-attendance`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    //"Authorization": "Bearer <your_jwt_token>" // Add your JWT token here
+                },
+                body: JSON.stringify(requestBody) // Send the request body as JSON
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log("Attendance marked successfully:", data);
+            })
+            .catch(error => {
+                console.error("Error marking attendance:", error);
+            });
+        }
+
+        // Add event listener to form submission
+        document.getElementById("attendance-form").addEventListener("submit", prepareAndSendRequest);
+    </script>
+
+</body>
+</html>

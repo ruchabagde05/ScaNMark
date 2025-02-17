@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Student Login</title>
+  </head>
+  <body>
+    <h1>Student Login</h1>
+    <form id="login-form">
+      <label for="email">Email:</label>
+      <input type="email" id="email" name="email" required /><br /><br />
+      <label for="password">Password:</label>
+      <input
+        type="password"
+        id="password"
+        name="password"
+        required
+      /><br /><br />
+      <button type="submit">Sign In</button>
+    </form>
+
+    <script>
+      let BASE_URL = "";
+
+      document.addEventListener("DOMContentLoaded", async () => {
+        BASE_URL = await fetchNgrokUrl();
+      });
+
+      async function fetchNgrokUrl() {
+        try {
+          const response = await fetch("http://localhost:8081/config/ngrok-url");
+          if (response.ok) {
+            return await response.text();
+          } else {
+            console.error("Error fetching ngrok URL:", response.status);
+            alert("Ngrok URL not available. Please try again later.");
+            return "";
+          }
+        } catch (error) {
+          console.error("Error fetching ngrok URL:", error);
+          return "";
+        }
+      }
+
+      document
+        .getElementById("login-form")
+        .addEventListener("submit", async function (event) {
+          event.preventDefault();
+
+          if (!BASE_URL) {
+            alert("Server configuration unavailable. Please try again later.");
+            return;
+          }
+
+          const email = document.getElementById("email").value;
+          const password = document.getElementById("password").value;
+
+          try {
+            const response = await fetch(`${BASE_URL}/api/students/signin`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ email, password }),
+            });
+
+            const data = await response.json();
+            if (response.ok) {
+              // Store token securely and redirect to the dashboard
+              sessionStorage.setItem("token", data.token); // Use sessionStorage for added security
+              sessionStorage.setItem("studentName", data.message.split(": ")[1]); // Extract student name
+              window.location.href = `${BASE_URL}/student-dashboard.html`;
+            } else {
+              alert(data.message || "Login failed. Please check your credentials.");
+            }
+          } catch (error) {
+            console.error("Error during login:", error);
+            alert("An unexpected error occurred. Please try again.");
+          }
+        });
+    </script>
+  </body>
+</html>
